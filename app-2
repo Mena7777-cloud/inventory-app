@@ -4,8 +4,7 @@ import os
 
 # --- ملف البيانات ---
 # سنستخدم ملف JSON مختلف لهذا الإصدار لتجنب التضارب
-FILE_PATH = 'inventory_v2.json'
-
+FILE_PATH = 'inventory_v2.json'j
 # --- دوال التعامل مع الملف ---
 def load_inventory():
     if not os.path.exists(FILE_PATH):
