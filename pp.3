@@ -1,0 +1,98 @@
+import streamlit as st
+import json
+import os
+
+# --- الإعدادات الأولية ---
+FILE_PATH = 'inventory_v2.json'
+
+# --- دوال حفظ وتحميل البيانات ---
+def load_data():
+    if os.path.exists(FILE_PATH):
+        try:
+            with open(FILE_PATH, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            return []
+    return []
+
+def save_data(data):
+    with open(FILE_PATH, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+
+# --- تحميل البيانات في بداية تشغيل التطبيق ---
+if 'inventory' not in st.session_state:
+    st.session_state.inventory = load_data()
+
+# --- تصميم واجهة التطبيق ---
+st.set_page_config(layout="wide", page_title="نظام المخزون v2.1")
+st.title("نظام إدارة المخزون (الإصدار المحسّن)")
+st.write("---")
+
+# --- القائمة الجانبية ---
+menu_choice = st.sidebar.selectbox("القائمة", ["عرض المخزون", "إضافة منتج", "بحث وتعديل"])
+
+# --- عرض المخزون ---
+if menu_choice == "عرض المخزون":
+    st.subheader("جميع المنتجات في المخزون")
+    if st.session_state.inventory:
+        # عرض البيانات مع تنسيق السعر
+        display_list = []
+        for item in st.session_state.inventory:
+            formatted_item = {
+                "اسم المنتج": item["name"],
+                "الكمية": item["quantity"],
+                "السعر": f"{item['price']:.2f}"
+            }
+            display_list.append(formatted_item)
+        st.table(display_list)
+    else:
+        st.info("المخزون فارغ حالياً.")
+
+# --- إضافة منتج ---
+elif menu_choice == "إضافة منتج":
+    st.subheader("إضافة منتج جديد")
+    with st.form(key="add_form", clear_on_submit=True):
+        name = st.text_input("اسم المنتج")
+        quantity = st.number_input("الكمية", min_value=0, step=1)
+        price = st.number_input("السعر", min_value=0.0, format="%.2f")
+        
+        if st.form_submit_button("✨ إضافة إلى المخزون"):
+            if name:
+                new_product = {"name": name, "quantity": int(quantity), "price": float(price)}
+                st.session_state.inventory.append(new_product)
+                save_data(st.session_state.inventory)
+                st.success(f"تمت إضافة '{name}' بنجاح!")
+                st.rerun()
+            else:
+                st.error("الرجاء إدخال اسم المنتج.")
+
+# --- بحث وتعديل ---
+elif menu_choice == "بحث وتعديل":
+    st.subheader("البحث عن منتج وتعديله أو حذفه")
+    search_term = st.text_input("اكتب اسم المنتج للبحث...")
+
+    if search_term:
+        results = [p for p in st.session_state.inventory if search_term.lower() in p['name'].lower()]
+        
+        if not results:
+            st.warning("لم يتم العثور على منتجات بهذا الاسم.")
+        else:
+            for product in results:
+                st.markdown(f"### تعديل المنتج: {product['name']}")
+                
+                # نستخدم فهرس المنتج في القائمة الأصلية لتحديثه
+                original_index = st.session_state.inventory.index(product)
+
+                with st.form(key=f"edit_{original_index}"):
+                    new_name = st.text_input("الاسم", value=product['name'])
+                    new_quantity = st.number_input("الكمية", value=product['quantity'], min_value=0, step=1)
+                    new_price = st.number_input("السعر", value=product['price'], min_value=0.0, format="%.2f")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.form_submit_button("💾 حفظ التعديلات"):
+                            updated_product = {"name": new_name, "quantity": int(new_quantity), "price": float(new_price)}
+                            st.session_state.inventory[original_index] = updated_product
+                            save_data(st.session_state.inventory)
+                            st.success("تم التحديث بنجاح!")
+                            st.rerun()
